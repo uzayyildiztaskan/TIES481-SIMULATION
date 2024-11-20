@@ -122,10 +122,12 @@ class SimulationRunner:
         self._plot_patient_timeline()
         plt.savefig(plots_dir / "patient_timeline.png")
         
+        """"
         plt.figure(figsize=(10, 6))
         self._plot_resource_heatmap()
         plt.savefig(plots_dir / "resource_heatmap.png")
-        
+        """
+
         plt.figure(figsize=(12, 6))
         self._plot_wait_distributions()
         plt.savefig(plots_dir / "wait_distributions.png")
@@ -169,7 +171,7 @@ def parse_arguments() -> argparse.Namespace:
     
     parser = argparse.ArgumentParser(description="Hospital Queue Simulation")
     
-    parser.add_argument("--simulation-time", type=float, default=300.0,
+    parser.add_argument("--simulation-time", type=float, default=1000.0,
                        help="Total simulation time")
     parser.add_argument("--prep-rooms", type=int, default=3,
                        help="Number of preparation rooms")
