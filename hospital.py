@@ -108,6 +108,7 @@ class Hospital:
                                          len(self.operating_rooms.users))
         self.monitor.record_resource_usage(current_time, 'recovery_rooms',
                                          len(self.recovery_rooms.users))
+       
         
         self._check_bottlenecks()
         
@@ -123,12 +124,15 @@ class Hospital:
             'operation': self.operating_rooms,
             'recovery': self.recovery_rooms
         }
-        
+        self.monitor.record_metric(self.env.now, 'queue_timestamps', 'timestamp', self.env.now)
         for location, resource in resources.items():
 
             utilization = len(resource.users) / resource.capacity
             queue_length = len(resource.queue)
             
+            self.monitor.record_metric(self.env.now, 'queues', location, queue_length)
+            
+
             if utilization > bottleneck_threshold or queue_length > resource.capacity:
 
                 self.monitor.record_bottleneck(
@@ -156,3 +160,4 @@ class Hospital:
                 metric='total_wait',
                 value=patient.total_wait_time
             )
+         
