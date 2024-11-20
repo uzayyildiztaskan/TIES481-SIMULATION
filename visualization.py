@@ -35,7 +35,7 @@ class SimulationVisualizer:
     def update_plots(self, monitor: EnhancedMonitor):
 
         self._plot_resource_utilization(self.axes[0, 0], monitor.resource_usage)
-        self._plot_queue_lengths(self.axes[0, 1], monitor.metrics['queues'])
+        self._plot_queue_lengths(self.axes[0, 1], monitor.metrics['queues'], monitor.metrics['queue_timestamps'])
         self._plot_patient_flow(self.axes[1, 0], monitor.patient_records)
         self._plot_waiting_times(self.axes[1, 1], monitor.patient_records)
         
@@ -61,17 +61,19 @@ class SimulationVisualizer:
         ax.set_title('Resource Utilization Over Time')
 
     
-    def _plot_queue_lengths(self, ax, queue_data):
+    def _plot_queue_lengths(self, ax, queue_data, queue_timestamps):
 
         ax.clear()
-
+        
+        timestamps = queue_timestamps['timestamp']
+        
         if queue_data:
 
             for queue_name, lengths in queue_data.items():
 
                 if lengths:
 
-                    ax.plot(lengths, label=queue_name)
+                    ax.plot(timestamps, lengths, label=queue_name)
 
             ax.legend()
 

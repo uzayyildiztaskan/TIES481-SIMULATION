@@ -145,8 +145,9 @@ class SimulationRunner:
 
     def _plot_resource_heatmap(self):
         
-        utilization_data = pd.DataFrame(self.monitor.resource_usage)
         
+        utilization_data = pd.DataFrame(self.monitor.resource_usage)
+    
         plt.title("Resource Utilization Heatmap")
         sns.heatmap(utilization_data, cmap='YlOrRd',
                    xticklabels=True, yticklabels=True)
@@ -168,7 +169,7 @@ def parse_arguments() -> argparse.Namespace:
     
     parser = argparse.ArgumentParser(description="Hospital Queue Simulation")
     
-    parser.add_argument("--simulation-time", type=float, default=1000.0,
+    parser.add_argument("--simulation-time", type=float, default=300.0,
                        help="Total simulation time")
     parser.add_argument("--prep-rooms", type=int, default=3,
                        help="Number of preparation rooms")
