@@ -73,7 +73,7 @@ class SimulationVisualizer:
 
                 if lengths:
 
-                    ax.plot(timestamps, lengths, label=queue_name)
+                    ax.step(timestamps, lengths, where='pre', label=queue_name)
 
             ax.legend()
 
