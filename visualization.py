@@ -47,13 +47,17 @@ class SimulationVisualizer:
     def _plot_resource_utilization(self, ax, resource_usage):
 
         ax.clear()
-
+        offset = 0
+        sep_width = 0.008
+        
         for resource, usage_data in resource_usage.items():
 
             if usage_data:
-
+                
                 times, counts = zip(*usage_data)
-                ax.plot(times, counts, label=resource)
+                counts = [count + offset for count in counts]
+                ax.step(times, counts, where='pre', label=resource)
+                offset += sep_width
 
         ax.legend()
         ax.set_xlabel('Simulation Time')
@@ -64,7 +68,6 @@ class SimulationVisualizer:
     def _plot_queue_lengths(self, ax, queue_data, queue_timestamps):
 
         ax.clear()
-        
         timestamps = queue_timestamps['timestamp']
         
         if queue_data:
@@ -72,7 +75,6 @@ class SimulationVisualizer:
             for queue_name, lengths in queue_data.items():
 
                 if lengths:
-
                     ax.step(timestamps, lengths, where='pre', label=queue_name)
 
             ax.legend()
