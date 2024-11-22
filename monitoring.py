@@ -71,7 +71,8 @@ class EnhancedMonitor:
                 'mean': np.mean(times),
                 'median': np.median(times),
                 'std': np.std(times),
-                'max': max(times)
+                'max': max(times),
+                'sum': sum(times)
             }
             for phase, times in waiting_times.items()
             if times

@@ -206,6 +206,8 @@ def create_config_from_args(args: argparse.Namespace) -> SimulationConfig:
 
 
 def print_results_summary(results: Dict[str, Any]):
+
+
     
     print("\n=== Simulation Results Summary ===")
     print(f"\nExecution Time: {results['execution_time']:.2f} seconds")
@@ -220,6 +222,7 @@ def print_results_summary(results: Dict[str, Any]):
         print(f"  {stage}:")
         print(f"    Mean: {stats['mean']:.2f} minutes")
         print(f"    Median: {stats['median']:.2f} minutes")
+        print(f"    Sum: {stats['sum']:.2f} minutes")
     
     print("\nResource Utilization:")
     for resource, stats in results['performance_metrics']['resource_utilization'].items():
@@ -259,6 +262,8 @@ def main():
         
         if not args.no_visualization:
             plt.show()
+        
+        input("Press Enter to continue...")
         
     except KeyboardInterrupt:
         print("\nSimulation interrupted by user")
