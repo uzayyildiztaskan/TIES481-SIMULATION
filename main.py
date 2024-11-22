@@ -223,10 +223,18 @@ def print_results_summary(results: Dict[str, Any]):
     
     print("\nResource Utilization:")
     for resource, stats in results['performance_metrics']['resource_utilization'].items():
-
-        print(f"  {resource}:")
-        print(f"    Mean: {stats['mean']:.2%}")
-        print(f"    Max: {stats['max']:.2%}")
+        if (resource == "prep_rooms"):
+            print(f"  {resource}:")
+            print(f"    Mean: {stats['mean']/SimulationConfig.NUM_PREP_ROOMS:.2%}")
+            print(f"    Max: {stats['max']/SimulationConfig.NUM_PREP_ROOMS:.2%}")
+        elif (resource == "recovery_rooms"):
+            print(f"  {resource}:")
+            print(f"    Mean: {stats['mean']/SimulationConfig.NUM_RECOVERY_ROOMS:.2%}")
+            print(f"    Max: {stats['max']/SimulationConfig.NUM_RECOVERY_ROOMS:.2%}")
+        else:
+            print(f"  {resource}:")
+            print(f"    Mean: {stats['mean']:.2%}")
+            print(f"    Max: {stats['max']:.2%}")
             
     print("\nBottleneck Analysis:")
     for location, stats in results['performance_metrics']['bottlenecks'].items():
