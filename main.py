@@ -86,7 +86,9 @@ class SimulationRunner:
                 'resource_utilization': summary_stats['resource_utilization'],
                 'bottlenecks': summary_stats['bottleneck_analysis']
             },
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'queue_data': self.monitor.metrics['queues'],
+            'queue_timestamps': self.monitor.metrics['queue_timestamps']
         }
         
         return results
