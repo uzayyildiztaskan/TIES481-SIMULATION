@@ -15,6 +15,7 @@ from monitoring import EnhancedMonitor
 from visualization import SimulationVisualizer
 from routing import SmartRouter
 
+import pickle
 
 class SimulationRunner:
     
@@ -187,6 +188,10 @@ def parse_arguments() -> argparse.Namespace:
                        help="Disable live visualization")
     parser.add_argument("--detailed-monitoring", action="store_true",
                        help="Enable detailed monitoring")
+    parser.add_argument("--runs", type=int, default=20,
+                       help="Run multiple simulations")
+    parser.add_argument("--pickle", type=str, default="simulation.results",
+                       help="Filename for results pickle file")
     
     return parser.parse_args()
 
@@ -200,7 +205,7 @@ def create_config_from_args(args: argparse.Namespace) -> SimulationConfig:
         NUM_RECOVERY_ROOMS=args.recovery_rooms,
         URGENT_PATIENT_RATIO=args.urgent_ratio,
         RANDOM_SEED=args.seed,
-        PLOT_LIVE_UPDATES=not args.no_visualization,
+        PLOT_LIVE_UPDATES=args.no_visualization,
         DETAILED_MONITORING=args.detailed_monitoring
     )
 
@@ -255,15 +260,23 @@ def main():
         
         config = create_config_from_args(args)
         
-        runner = SimulationRunner(config)
-        results = runner.run()
+        all_run_results = []
+        for i in range(args.runs):
+            runner = SimulationRunner(config)
+            results = runner.run()
+            
+            print_results_summary(results)
+            
+            if config.PLOT_LIVE_UPDATES:
+                plt.show()
+                input("Press Enter to continue...")
+    
+            all_run_results.append(results)
+            config.RANDOM_SEED += 1 # Run next simulation with different seed, so we don't run the same simulation over and over again.
         
-        print_results_summary(results)
-        
-        if not args.no_visualization:
-            plt.show()
-        
-        input("Press Enter to continue...")
+        file = open(args.pickle, 'wb')
+
+        pickle.dump(all_run_results, file)     
         
     except KeyboardInterrupt:
         print("\nSimulation interrupted by user")
