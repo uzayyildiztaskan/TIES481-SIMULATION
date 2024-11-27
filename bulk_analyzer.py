@@ -35,22 +35,13 @@ def blocking_time_from_data(data):
         
     return timer_totals
 
+
 def mean_confidence_interval(data, confidence=0.95):
-    
-    sorted_data = sorted(data)
-    n = len(data)
-    
-    s = n * ((1 - confidence)/2) # How many elements we leave out from both ends
-    t = s - math.floor(s) # For linear approximation ratio
-    
-    mean = sum(data) / n
-    
-    # Linear approximation between two elements
-    lower = ((1-t) * sorted_data[math.floor(s)] + t * sorted_data[math.ceil(s)])
-    
-    sorted_data.reverse()
-    upper = ((1-t) * sorted_data[math.floor(s)] + t * sorted_data[math.ceil(s)])
-    return mean, lower, upper
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.t.ppf((1 + confidence) / 2., n-1)
+    return m, m-h, m+h
 
 bt_data = blocking_time_from_data(data)
 mean_confidence_interval(bt_data)
