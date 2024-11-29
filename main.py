@@ -174,7 +174,7 @@ def parse_arguments() -> argparse.Namespace:
     
     parser = argparse.ArgumentParser(description="Hospital Queue Simulation")
     
-    parser.add_argument("--simulation-time", type=float, default=1000.0,
+    parser.add_argument("--simulation-time", type=float, default=1500.0,
                        help="Total simulation time")
     parser.add_argument("--prep-rooms", type=int, default=3,
                        help="Number of preparation rooms")
