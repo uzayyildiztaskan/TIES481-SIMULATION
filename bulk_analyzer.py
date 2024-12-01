@@ -58,6 +58,9 @@ def operation_blocking_time_from_data(data, ignore_time, end_timestamp):
         
     return timer_totals
 
+def preparation_capacities(data):
+    return [simulation['summary_statistics']['resource_utilization']['prep_rooms']['mean'] for simulation in data]
+    
 def average_queue_lengths_from_data(data, location, ignore_time, end_timestamp):
     # In order to estimate from a steady state, use ignore_time
     # to ignore events before timestamp = ignore_time
@@ -110,6 +113,15 @@ lower, upper = scipy.stats.t.interval(0.95, len(bt_data)-1,
                                             scale=scipy.stats.sem(bt_data))
 
 print(f"Blocking time average: {mean}")
+print(f"95% confidence interval [{lower}, {upper}]")
+
+cap_data = preparation_capacities(data)
+mean = np.mean(cap_data)
+lower, upper = scipy.stats.t.interval(0.95, len(cap_data)-1, 
+                                            loc=mean, 
+                                            scale=scipy.stats.sem(cap_data))
+
+print(f"Average utilization: {mean}")
 print(f"95% confidence interval [{lower}, {upper}]")
 
 
