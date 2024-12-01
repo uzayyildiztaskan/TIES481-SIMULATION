@@ -3,10 +3,11 @@ import numpy as np
 import scipy.stats
 import pickle
 import os
+from config import SimulationConfig
 
 print(os.getcwd()) # Check that your pickle file is in this folder.
-ignore_time = 500
-end_timestamp = 1500
+ignore_time = SimulationConfig.IGNORE_TIME
+end_timestamp = SimulationConfig.SIMULATION_TIME + SimulationConfig.IGNORE_TIME
 
 with open('simulation.results', 'rb') as simfile:
     data = pickle.load(simfile)

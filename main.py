@@ -296,7 +296,7 @@ def create_preset_config() -> SimulationConfig:
         SIMULATION_TIME=1500,
         NUM_OPERATING_ROOMS=1,
         RANDOM_SEED=42,
-        PLOT_LIVE_UPDATES=True,
+        PLOT_LIVE_UPDATES=False,
         DETAILED_MONITORING=False
     )
 
