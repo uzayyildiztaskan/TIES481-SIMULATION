@@ -385,6 +385,9 @@ def main():
     generate_comparative_report(results)
     # Optinal: Comparative Statistical Test
     comparative_statistical_test(results)
+    # Pairwise test (Note: doing this at the same time as the above produces nonsense
+    # as it needs a random seed and this needs a fixed seed)
+    pairwise_statistical_test(results)
 
 def generate_comparative_report(results: Dict[str, List[Dict]]):
     """
@@ -473,6 +476,64 @@ def comparative_statistical_test(results: Dict[str, List[Dict]]):
                 # Print mean and standard deviation for context
                 print(f"    {config1} - Mean: {np.mean(values1):.2f} ± {np.std(values1):.2f}")
                 print(f"    {config2} - Mean: {np.mean(values2):.2f} ± {np.std(values2):.2f}")
+
+def pairwise_statistical_test(results: Dict[str, List[Dict]]):
+    """
+    Perform statistical tests to compare configurations using paired observations.
+    """
+    from scipy import stats
+    import numpy as np
+
+    configurations = list(results.keys())
+
+    # Metrics extraction and comparison
+    print("\n=== Comparative Statistical Analysis (Paired Observations) ===")
+
+    # Extract metrics for comparison
+    metrics = [
+        ('Throughput (patients/hour)', lambda run: run['performance_metrics']['throughput']['per_hour']),
+        ('Average Wait Time (minutes)', lambda run: np.mean([stage['mean'] for stage in run['performance_metrics']['avg_wait_times'].values()])),
+        ('Resource Utilization', lambda run: np.mean([util['mean'] for util in run['performance_metrics']['resource_utilization'].values()])),
+    ]
+
+    for metric_name, metric_extractor in metrics:
+        print(f"\nComparative Analysis for {metric_name}:")
+        metric_data = {config: [metric_extractor(run) for run in runs] for config, runs in results.items()}
+        config_names = list(metric_data.keys())
+
+        for i in range(len(config_names)):
+            for j in range(i + 1, len(config_names)):
+                config1, config2 = config_names[i], config_names[j]
+
+                # Ensure paired comparisons (same number of runs)
+                if len(metric_data[config1]) != len(metric_data[config2]):
+                    print(f"  {config1} vs {config2}: Cannot perform paired test (unequal run counts)")
+                    continue
+
+                # Compute differences
+                differences = np.array(metric_data[config1]) - np.array(metric_data[config2])
+
+                # Perform paired t-test
+                t_statistic, p_value = stats.ttest_rel(metric_data[config1], metric_data[config2])
+
+                # Compute confidence interval for mean difference
+                mean_diff = np.mean(differences)
+                std_err = stats.sem(differences)  # Standard error of the mean difference
+                confidence_interval = stats.t.interval(
+                    0.95,  # 95% confidence level
+                    len(differences) - 1,  # Degrees of freedom
+                    loc=mean_diff,
+                    scale=std_err
+                )
+
+                # Print results
+                print(f"  {config1} vs {config2}:")
+                print(f"    Mean Difference: {mean_diff:.4f}")
+                print(f"    95% CI for Difference: ({confidence_interval[0]:.4f}, {confidence_interval[1]:.4f})")
+                print(f"    Paired t-statistic: {t_statistic:.4f}")
+                print(f"    p-value: {p_value:.4f}")
+                print(f"    Significant Difference: {'Yes' if p_value < 0.05 else 'No'}")
+
 
 if __name__ == "__main__":
     main()
