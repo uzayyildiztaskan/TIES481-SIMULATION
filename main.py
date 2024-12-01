@@ -60,7 +60,6 @@ def blocking_time_calculation(metrics, ignore_time, end_timestamp):
         else:
             timer_on = False
     
-    print(timer_total)
     return timer_total
 
 def queue_average_for_simulation(queues, timestamps, ignore_time, end_timestamp):
@@ -172,8 +171,8 @@ class SimulationRunner:
             'timestamp': datetime.now().isoformat(),
             'queue_data': self.monitor.metrics['queues'],
             'queue_timestamps': queue_timestamps,
-            'preparation_queue_average_length': queue_average_for_simulation(self.monitor.metrics['queues']['preparation'], self.monitor.metrics['queue_timestamps'], 500, 1500), #SimulationConfig.IGNORE_TIME was 1000?
-            'blocking_time': blocking_time_calculation(self.monitor.metrics, 500, 1500)
+            'preparation_queue_average_length': queue_average_for_simulation(self.monitor.metrics['queues']['preparation'], self.monitor.metrics['queue_timestamps'], SimulationConfig.IGNORE_TIME, 1500), #SimulationConfig.IGNORE_TIME was 1000?
+            'blocking_time': blocking_time_calculation(self.monitor.metrics, SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME)
         }
        
         return results

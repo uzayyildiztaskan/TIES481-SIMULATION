@@ -9,8 +9,8 @@ class SimulationConfig:
     """Enhanced configuration parameters for the simulation."""
 
     # Time parameters
-    IGNORE_TIME: float = 1000.0
-    SIMULATION_TIME: float = 1000.0
+    IGNORE_TIME: float = 500.0
+    SIMULATION_TIME: float = 1500.0
     MEAN_INTERARRIVAL_TIME: float = 25.0
     MEAN_PREP_TIME: float = 40.0
     MEAN_OPERATION_TIME: float = 20.0
