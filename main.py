@@ -18,6 +18,86 @@ from routing import SmartRouter
 
 import pickle
 
+def blocking_time_calculation(metrics, ignore_time, end_timestamp):
+
+    # Type enforcement, maybe a better way exists, but I do not know (hans)
+    timestamps = [float(i) for i in metrics['queue_timestamps']['timestamp']]
+    operation_queues = [int(i) for i in metrics['queues']['operation']]
+    recovery_queues = [int(i) for i in metrics['queues']['recovery']]
+    
+    operation_status = list(zip(timestamps, operation_queues, recovery_queues))
+    steady_status = [event for event in operation_status if event[0] > ignore_time]
+    
+    # Figure out what the state at time ignore_time was by checking the 
+    # last element to be left out of the steady_status, add that to start of 
+    # events list, but with timestamp at exactly ignore_time
+    state_at_ignore_time = operation_status[-len(steady_status)-1]
+    steady_status = [(ignore_time, state_at_ignore_time[1], state_at_ignore_time[2])] + steady_status
+    # Also we might have a case where the system ends at a blocked state, 
+    # thus the timer should be left to run until that point. We handle
+    # this case by adding a last_state at end_timestamp
+    last_state = steady_status[-1]
+    if last_state[0] > end_timestamp: raise ValueError
+    end_state = (end_timestamp, last_state[1], last_state[2])
+    steady_status = steady_status + [end_state]
+    timer_total = 0
+    
+    timer_on = False 
+    # Having this True should not affect the calculation, since the first event
+    # will be compared against the same timestamp as itself, thus contributing
+    # a net zero to timer_total
+    
+    previous_timestamp = ignore_time
+    for event in steady_status:
+        current_timestamp = event[0]
+        persons_in_operation_queue = event[1]
+        persons_in_recovery_queue = event[2]
+        if timer_on:
+            timer_total += (current_timestamp - previous_timestamp)
+        previous_timestamp = current_timestamp
+        if persons_in_operation_queue and persons_in_recovery_queue: 
+            timer_on = True
+        else:
+            timer_on = False
+    
+    print(timer_total)
+    return timer_total
+
+def queue_average_for_simulation(queues, timestamps, ignore_time, end_timestamp):
+
+        # Type enforcement, maybe a better way exists, but I do not know (hans)
+
+        timestamps = [float(i) for i in timestamps['timestamp']]
+        queues = [int(i) for i in queues]
+
+        queue_status = list(zip(list(timestamps), list(queues)))
+        
+        steady_status = [event for event in queue_status if event[0] > ignore_time]
+        # Figure out what the state at time ignore_time was by checking the 
+        # last element to be left out of the steady_status, add that to start of 
+        # events list, but with timestamp at exactly ignore_time
+        state_at_ignore_time = queue_status[-len(steady_status)-1]
+        steady_status = [(ignore_time, state_at_ignore_time[1])] + steady_status
+        # Also we might have a case where the system ends at a blocked state, 
+        # thus the timer should be left to run until that point. We handle
+        # this case by adding a last_state at end_timestamp
+        last_state = steady_status[-1]
+        if last_state[0] > end_timestamp: raise ValueError
+        end_state = (end_timestamp, last_state[1])
+        steady_status = steady_status + [end_state]
+        
+        previous_timestamp = ignore_time 
+        queue_mass = 0
+        # This in effect integration for a step function
+        
+        for event in steady_status:
+            current_timestamp = event[0]
+            queue_mass += event[1] * (current_timestamp - previous_timestamp)
+            previous_timestamp = current_timestamp
+        
+        return queue_mass / (end_timestamp - ignore_time)
+
+
 class SimulationRunner:
     
     
@@ -75,8 +155,10 @@ class SimulationRunner:
     
     def _compile_results(self, execution_time: float) -> Dict[str, Any]:
         
+        prep_queues = self.monitor.metrics['queues']['preparation']
         summary_stats = self.monitor.get_summary_statistics()
-        
+        queue_timestamps = self.monitor.metrics['queue_timestamps']
+
         results = {
             'simulation_config': self.config.__dict__,
             'execution_time': execution_time,
@@ -89,9 +171,11 @@ class SimulationRunner:
             },
             'timestamp': datetime.now().isoformat(),
             'queue_data': self.monitor.metrics['queues'],
-            'queue_timestamps': self.monitor.metrics['queue_timestamps']
+            'queue_timestamps': queue_timestamps,
+            'preparation_queue_average_length': queue_average_for_simulation(self.monitor.metrics['queues']['preparation'], self.monitor.metrics['queue_timestamps'], 500, 1500), #SimulationConfig.IGNORE_TIME was 1000?
+            'blocking_time': blocking_time_calculation(self.monitor.metrics, 500, 1500)
         }
-        
+       
         return results
     
     
@@ -383,7 +467,7 @@ def main():
     
     # Optional: Generate comparative report
     generate_comparative_report(results)
-    # Optinal: Comparative Statistical Test
+    # Optional: Comparative Statistical Test
     comparative_statistical_test(results)
     # Pairwise test (Note: doing this at the same time as the above produces nonsense
     # as it needs a random seed and this needs a fixed seed)
