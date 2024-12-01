@@ -5,8 +5,9 @@ from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import seaborn as sns
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import simpy
 
 from config import SimulationConfig
@@ -24,7 +25,7 @@ class SimulationRunner:
 
         self.config = config
         self.monitor = EnhancedMonitor()
-        self.visualizer = SimulationVisualizer()
+        self.visualizer = SimulationVisualizer() if self.config.PLOT_LIVE_UPDATES else SimulationVisualizer(enable_plotting=False)
         self.results_dir = Path("simulation_results")
         self.results_dir.mkdir(exist_ok=True)
     
@@ -120,10 +121,15 @@ class SimulationRunner:
 
     
     def _generate_additional_plots(self, plots_dir: Path):
+
+        plt.close('all')
         
         plt.figure(figsize=(15, 8))
-        self._plot_patient_timeline()
-        plt.savefig(plots_dir / "patient_timeline.png")
+        try:
+            self._plot_patient_timeline()
+            plt.savefig(plots_dir / "patient_timeline.png")
+        finally:
+            plt.close()
         
         """"
         plt.figure(figsize=(10, 6))
@@ -132,8 +138,11 @@ class SimulationRunner:
         """
 
         plt.figure(figsize=(12, 6))
-        self._plot_wait_distributions()
-        plt.savefig(plots_dir / "wait_distributions.png")
+        try:
+            self._plot_wait_distributions()
+            plt.savefig(plots_dir / "wait_distributions.png")
+        finally:
+            plt.close() 
 
     
     def _plot_patient_timeline(self):
@@ -169,6 +178,74 @@ class SimulationRunner:
         plt.xlabel("Stage")
         plt.ylabel("Wait Time (minutes)")
 
+def run_multiple_configurations(base_config: SimulationConfig, configurations: List[Dict[str, Any]], runs_per_config: int = 20):
+    """
+    Run simulations across multiple configurations
+    
+    Args:
+        base_config (SimulationConfig): Base configuration to clone and modify
+        configurations (List[Dict]): List of configuration modifications
+        runs_per_config (int): Number of runs for each configuration
+    
+    Returns:
+        Dict containing results for each configuration
+    """
+    all_configuration_results = {}
+    
+    for config_name, config_mods in configurations.items():
+        # Create a copy of the base configuration
+        current_config = SimulationConfig(**{**base_config.__dict__, **config_mods})
+        
+        config_results = []
+        for i in range(runs_per_config):
+            runner = SimulationRunner(current_config)
+            results = runner.run()
+            config_results.append(results)
+
+            print_results_summary(results)
+            
+            if base_config.PLOT_LIVE_UPDATES:
+                plt.show()
+                input("Press Enter to continue...")
+            
+            # Increment random seed for each run
+            current_config.RANDOM_SEED += 1
+        
+        all_configuration_results[config_name] = config_results
+    
+    return all_configuration_results
+
+def run_single_configuration(base_config: SimulationConfig, runs: int = 20):
+    """
+    Run simulations for a single configuration with multiple runs
+    
+    Args:
+        base_config (SimulationConfig): Configuration to run
+        runs (int): Number of runs for the configuration
+    
+    Returns:
+        List containing results from each run
+    """
+    config_results = []
+    
+    # Create a copy of the base configuration to avoid modifying the original
+    current_config = SimulationConfig(**base_config.__dict__)
+    
+    for i in range(runs):
+        runner = SimulationRunner(current_config)
+        results = runner.run()
+        config_results.append(results)
+        
+        if base_config.PLOT_LIVE_UPDATES:
+            plt.show()
+            input("Press Enter to continue...")
+        
+        # Increment random seed for each run
+        current_config.RANDOM_SEED += 1
+    
+    return config_results
+
+
 
 def parse_arguments() -> argparse.Namespace:
     
@@ -192,8 +269,10 @@ def parse_arguments() -> argparse.Namespace:
                        help="Enable detailed monitoring")
     parser.add_argument("--runs", type=int, default=20,
                        help="Run multiple simulations")
-    parser.add_argument("--pickle", type=str, default="simulation.results",
+    parser.add_argument("--pickle", type=str, default="simulation_results",
                        help="Filename for results pickle file")
+    parser.add_argument("--preset-config", action="store_true",
+                       help="Runs the simulation with the preset configurations set for task 3")
     
     return parser.parse_args()
 
@@ -207,8 +286,18 @@ def create_config_from_args(args: argparse.Namespace) -> SimulationConfig:
         NUM_RECOVERY_ROOMS=args.recovery_rooms,
         URGENT_PATIENT_RATIO=args.urgent_ratio,
         RANDOM_SEED=args.seed,
-        PLOT_LIVE_UPDATES=args.no_visualization,
+        PLOT_LIVE_UPDATES=not args.no_visualization,
         DETAILED_MONITORING=args.detailed_monitoring
+    )
+
+def create_preset_config() -> SimulationConfig:
+
+    return SimulationConfig(
+        SIMULATION_TIME=1500,
+        NUM_OPERATING_ROOMS=1,
+        RANDOM_SEED=42,
+        PLOT_LIVE_UPDATES=True,
+        DETAILED_MONITORING=False
     )
 
 
@@ -255,38 +344,135 @@ def print_results_summary(results: Dict[str, Any]):
 
 
 def main():
+
+    args = parse_arguments()
+
+    save_path = args.pickle
+
+    if args.preset_config:
+
+        base_config = create_preset_config()
     
-    try:
+        configurations = {
+            "3p3r": {
+                "NUM_PREP_ROOMS": 3,
+                "NUM_RECOVERY_ROOMS": 3
+            },
+            "3p4r": {
+                "NUM_PREP_ROOMS": 3,
+                "NUM_RECOVERY_ROOMS": 4
+            },
+            "4p5r": {
+                "NUM_PREP_ROOMS": 4,
+                "NUM_RECOVERY_ROOMS": 5
+            }
+        }
+        
+        results = run_multiple_configurations(base_config, configurations)
 
-        args = parse_arguments()
-        
-        config = create_config_from_args(args)
-        
-        all_run_results = []
-        for i in range(args.runs):
-            runner = SimulationRunner(config)
-            results = runner.run()
-            
-            print_results_summary(results)
-            
-            if config.PLOT_LIVE_UPDATES:
-                plt.show()
-                input("Press Enter to continue...")
+    else:
+
+        base_config = create_config_from_args(args)
+
+        results = run_single_configuration(base_config, runs=args.runs)
     
-            all_run_results.append(results)
-            config.RANDOM_SEED += 1 # Run next simulation with different seed, so we don't run the same simulation over and over again.
-        
-        file = open(args.pickle, 'wb')
+    
+    # Save results to pickle
+    with open(f'{save_path}/multi_config_simulation.pkl', 'wb') as f:
+        pickle.dump(results, f)
+    
+    # Optional: Generate comparative report
+    generate_comparative_report(results)
+    # Optinal: Comparative Statistical Test
+    comparative_statistical_test(results)
 
-        pickle.dump(all_run_results, file)     
+def generate_comparative_report(results: Dict[str, List[Dict]]):
+    """
+    Generate a comprehensive report comparing simulation configurations
+    
+    Args:
+        results (Dict): Results from multiple configuration runs
+    """
+    print("\n=== CONFIGURATION COMPARATIVE ANALYSIS ===")
+    
+    for config_name, config_runs in results.items():
+        print(f"\nConfiguration: {config_name}")
         
-    except KeyboardInterrupt:
-        print("\nSimulation interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\nError during simulation: {str(e)}")
-        raise
+        # Aggregate metrics across runs
+        throughputs = [run['performance_metrics']['throughput']['per_hour'] for run in config_runs]
+        wait_times = [np.mean([stage['mean'] for stage in run['performance_metrics']['avg_wait_times'].values()]) 
+                      for run in config_runs]
+        resource_utils = [np.mean([util['mean'] for util in run['performance_metrics']['resource_utilization'].values()]) 
+                          for run in config_runs]
+        
+        print(f"Throughput (patients/hour): {np.mean(throughputs):.2f} ± {np.std(throughputs):.2f}")
+        print(f"Average Wait Time: {np.mean(wait_times):.2f} ± {np.std(wait_times):.2f} minutes")
+        print(f"Resource Utilization: {np.mean(resource_utils):.2%} ± {np.std(resource_utils):.2%}")
+        
+        # Bottleneck analysis
+        bottlenecks = [run['performance_metrics']['bottlenecks'] for run in config_runs]
+        print("Bottleneck Summary:")
+        for location in set().union(*bottlenecks):
+            location_bottlenecks = [b.get(location, {'count': 0, 'max_queue': 0}) for b in bottlenecks]
+            print(f"  {location}:")
+            print(f"    Avg Bottleneck Count: {np.mean([b['count'] for b in location_bottlenecks]):.2f}")
+            print(f"    Max Queue Length: {np.mean([b['max_queue'] for b in location_bottlenecks]):.2f}")
 
+def comparative_statistical_test(results: Dict[str, List[Dict]]):
+    """
+    Perform statistical tests to compare configurations
+    """
+    from scipy import stats
+    import numpy as np
+    
+    configurations = list(results.keys())
+    
+    # Metrics extraction and comparison
+    print("\n=== Comparative Statistical Analysis ===")
+    
+    # Compare throughput (per hour)
+    throughputs = {config: [run['performance_metrics']['throughput']['per_hour'] for run in runs] 
+                   for config, runs in results.items()}
+    
+    # Compare average wait times
+    wait_times = {config: [np.mean([stage['mean'] for stage in run['performance_metrics']['avg_wait_times'].values()]) 
+                           for run in runs] 
+                  for config, runs in results.items()}
+    
+    # Compare resource utilization
+    resource_utils = {config: [np.mean([util['mean'] for util in run['performance_metrics']['resource_utilization'].values()]) 
+                               for run in runs] 
+                      for config, runs in results.items()}
+    
+    # Perform pairwise comparisons
+    metrics = [
+        ('Throughput (patients/hour)', throughputs), 
+        ('Average Wait Time (minutes)', wait_times), 
+        ('Resource Utilization', resource_utils)
+    ]
+    
+    for metric_name, metric_data in metrics:
+        print(f"\nComparative Analysis for {metric_name}:")
+        config_names = list(metric_data.keys())
+        
+        for i in range(len(config_names)):
+            for j in range(i+1, len(config_names)):
+                config1, config2 = config_names[i], config_names[j]
+                
+                values1 = metric_data[config1]
+                values2 = metric_data[config2]
+                
+                # Perform independent t-test
+                t_statistic, p_value = stats.ttest_ind(values1, values2)
+                
+                print(f"  {config1} vs {config2}:")
+                print(f"    t-statistic: {t_statistic:.4f}")
+                print(f"    p-value: {p_value:.4f}")
+                print(f"    Significant Difference: {'Yes' if p_value < 0.05 else 'No'}")
+                
+                # Print mean and standard deviation for context
+                print(f"    {config1} - Mean: {np.mean(values1):.2f} ± {np.std(values1):.2f}")
+                print(f"    {config2} - Mean: {np.mean(values2):.2f} ± {np.std(values2):.2f}")
 
 if __name__ == "__main__":
     main()

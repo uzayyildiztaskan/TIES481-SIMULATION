@@ -52,16 +52,29 @@ class SmartRouter:
     
     
     def _calculate_priority(self, patient: 'Patient') -> int:
-
+        """
+        Enhanced priority calculation considering:
+        1. Urgent flag
+        2. Wait time
+        3. Current system load
+        """
         base_priority = 1
-        if patient.urgent:
-            base_priority *= 2
         
-        wait_time = patient.total_wait_time
-
-        if wait_time > 60:
-
-            base_priority += 1
+        # Higher priority for urgent patients
+        if patient.urgent:
+            base_priority *= self.config.URGENT_PRIORITY_FACTOR  # From config
+        
+        # Dynamically adjust priority based on wait time
+        wait_time_priority_thresholds = [
+            (30, 1),   # +1 priority if waited more than 30 mins
+            (60, 2),   # +2 priority if waited more than 60 mins
+            (90, 3)    # +3 priority if waited more than 90 mins
+        ]
+        
+        total_wait = patient.total_wait_time
+        for threshold, priority_boost in wait_time_priority_thresholds:
+            if total_wait > threshold:
+                base_priority += priority_boost
         
         return base_priority
     
@@ -85,19 +98,20 @@ class SmartRouter:
         wait_times: Dict[str, float],
         is_urgent: bool
     ) -> str:
-        
+        """
+        Refined route selection considering urgent patient needs
+        """
         possible_routes = self._get_possible_routes(current_stage)
         
         if is_urgent:
-
+            # For urgent patients, minimize total expected wait time
             return min(possible_routes, key=lambda x: wait_times[x])
-        
         else:
-
+            # For regular patients, balance load and wait time
             return min(
                 possible_routes,
-                key=lambda x: loads[x] * wait_times[x]
-            )
+                key=lambda x: (loads[x] * wait_times[x])
+        )
     
 
     def _get_possible_routes(self, current_stage: str) -> List[str]:

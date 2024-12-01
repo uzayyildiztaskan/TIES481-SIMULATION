@@ -13,12 +13,19 @@ class SimulationVisualizer:
     """Real-time and post-simulation visualization system."""
 
 
-    def __init__(self):
+    def __init__(self, enable_plotting=True):
 
-        self.figure, self.axes = plt.subplots(2, 2, figsize=(15, 10))
-        plt.ion()
-        self.setup_plots()
-        self.stages = ['Waiting', 'Preparation', 'Operation', 'Recovery']
+        if enable_plotting:
+            self.figure, self.axes = plt.subplots(2, 2, figsize=(15, 10))
+            plt.ion()
+            self.setup_plots()
+            self.stages = ['Waiting', 'Preparation', 'Operation', 'Recovery']
+            self.plotting_enabled = True
+        else:
+            self.figure = plt.figure()  # Create a minimal figure
+            self.axes = None
+            self.plotting_enabled = False
+            self.stages = ['Waiting', 'Preparation', 'Operation', 'Recovery']
 
     
     def setup_plots(self):
