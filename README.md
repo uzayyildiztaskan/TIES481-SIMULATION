@@ -6,3 +6,6 @@ python -m main --simulation-time 2000 --prep-rooms 4 --urgent-ratio 0.15 --detai
 
 # Run without visualization
 python -m main --no-visualization
+
+# Run with preset config for task 3
+python -m main --preset-config
