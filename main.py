@@ -294,7 +294,10 @@ def run_multiple_configurations(base_config: SimulationConfig, configurations: L
                 input("Press Enter to continue...")
             
             # Increment random seed for each run
-            current_config.RANDOM_SEED += 1
+            if current_config.IS_PAIRED:
+                current_config.RANDOM_SEED += 1
+            else:
+                current_config.RANDOM_SEED = rand.randint(0,100000)
         
         all_configuration_results[config_name] = config_results
     
@@ -315,10 +318,6 @@ def run_single_configuration(base_config: SimulationConfig, runs: int = 20):
     
     # Create a copy of the base configuration to avoid modifying the original
     current_config = SimulationConfig(**base_config.__dict__)
-
-    if not current_config.IS_PAIRED:
-        current_config.RANDOM_SEED = rand.randint(1, 1024)
-        print(current_config.RANDOM_SEED)
 
     
     for i in range(runs):
