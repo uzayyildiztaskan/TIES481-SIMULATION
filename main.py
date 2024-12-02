@@ -263,7 +263,7 @@ class SimulationRunner:
         plt.xlabel("Stage")
         plt.ylabel("Wait Time (minutes)")
 
-def run_multiple_configurations(base_config: SimulationConfig, configurations: List[Dict[str, Any]], runs_per_config: int = 3):
+def run_multiple_configurations(base_config: SimulationConfig, configurations: List[Dict[str, Any]], runs_per_config: int = 20):
     """
     Run simulations across multiple configurations
     
