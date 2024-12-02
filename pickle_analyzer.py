@@ -8,9 +8,11 @@ from config import SimulationConfig
 print(os.getcwd()) # Check that your pickle file is in this folder.
 ignore_time = SimulationConfig.IGNORE_TIME
 end_timestamp = SimulationConfig.SIMULATION_TIME + SimulationConfig.IGNORE_TIME
+is_paired = SimulationConfig.IS_PAIRED
 
 with open('simulation.results', 'rb') as simfile:
     data = pickle.load(simfile)
+
 
 def operation_blocking_time_from_data(data, ignore_time, end_timestamp):
     # In order to estimate from a steady state, use ignore_time
@@ -96,6 +98,52 @@ def average_queue_lengths_from_data(data, location, ignore_time, end_timestamp):
    
     return queue_averages
     
+# Perform pairwise comparisons
+def pairwise_comparisons(metric_extractor, config1, config2):
+    data1 = metric_extractor(config1)
+    data2 = metric_extractor(config2)
+    differences = np.array(data1) - np.array(data2)
+    mean_diff, lower, upper = confidence_interval(differences)
+    t_stat, p_val = scipy.stats.ttest_rel(data1, data2)
+    return mean_diff, lower, upper, t_stat, p_val
+
+
+
+# Perform statistical tests
+def comparative_analysis(data, is_paired):
+    # Handle single configuration vs multiple configurations
+    if isinstance(data, list):
+        data = {"default": data}  # Wrap single configuration in a dict for uniform processing
+    configurations = list(data.keys())
+    metrics = {
+        "Operation Blocking Time": operation_blocking_time_from_data,
+        "Preparation Queue Length": lambda d: average_queue_lengths_from_data(d, "preparation", ignore_time, end_timestamp),
+        "Preparation Utilization": preparation_capacities
+    }
+
+    for metric_name, metric_func in metrics.items():
+        print(f"\n=== Analysis for {metric_name} ===")
+        for i in range(len(configurations)):
+            for j in range(i + 1, len(configurations)):
+                config1, config2 = configurations[i], configurations[j]
+                if is_paired:
+                    result = pairwise_comparisons(metric_func, data[config1], data[config2])
+                    mean_diff, lower, upper, t_stat, p_val = result
+                    print(f"{config1} vs {config2} (Paired):")
+                    print(f"  Mean Difference: {mean_diff:.4f}")
+                    print(f"  95% CI: [{lower:.4f}, {upper:.4f}]")
+                    print(f"  t-statistic: {t_stat:.4f}, p-value: {p_val:.4f}")
+                else:
+                    data1, data2 = metric_func(data[config1]), metric_func(data[config2])
+                    t_stat, p_val = scipy.stats.ttest_ind(data1, data2)
+                    mean1, lower1, upper1 = confidence_interval(data1)
+                    mean2, lower2, upper2 = confidence_interval(data2)
+                    print(f"{config1} vs {config2} (Independent):")
+                    print(f"  {config1} Mean: {mean1:.4f}, 95% CI: [{lower1:.4f}, {upper1:.4f}]")
+                    print(f"  {config2} Mean: {mean2:.4f}, 95% CI: [{lower2:.4f}, {upper2:.4f}]")
+                    print(f"  t-statistic: {t_stat:.4f}, p-value: {p_val:.4f}")
+
+
 queue_data = average_queue_lengths_from_data(data, "preparation", ignore_time, end_timestamp)
 mean = np.mean(queue_data)
 lower, upper = scipy.stats.t.interval(0.95, len(queue_data)-1, 
@@ -125,6 +173,6 @@ lower, upper = scipy.stats.t.interval(0.95, len(cap_data)-1,
 print(f"Average utilization: {mean}")
 print(f"95% confidence interval [{lower}, {upper}]")
 
-
+#comparative_analysis(data, is_paired)
     
     

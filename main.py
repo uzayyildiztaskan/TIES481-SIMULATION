@@ -9,6 +9,8 @@ import numpy as np
 import seaborn as sns
 from typing import Dict, Any, Optional, List
 import simpy
+import scipy.stats
+import random as rand
 
 from config import SimulationConfig
 from hospital import Hospital
@@ -313,6 +315,11 @@ def run_single_configuration(base_config: SimulationConfig, runs: int = 20):
     
     # Create a copy of the base configuration to avoid modifying the original
     current_config = SimulationConfig(**base_config.__dict__)
+
+    if not current_config.IS_PAIRED:
+        current_config.RANDOM_SEED = rand.randint(1, 1024)
+        print(current_config.RANDOM_SEED)
+
     
     for i in range(runs):
         runner = SimulationRunner(current_config)
@@ -356,6 +363,8 @@ def parse_arguments() -> argparse.Namespace:
                        help="Filename for results pickle file")
     parser.add_argument("--preset-config", action="store_true",
                        help="Runs the simulation with the preset configurations set for task 3")
+    parser.add_argument("--preset-config-pairwise", action="store_true",
+                       help="Runs the simulation with the preset configurations pairwise for task 3")
     
     return parser.parse_args()
 
@@ -380,7 +389,19 @@ def create_preset_config() -> SimulationConfig:
         NUM_OPERATING_ROOMS=1,
         RANDOM_SEED=42,
         PLOT_LIVE_UPDATES=False,
-        DETAILED_MONITORING=False
+        DETAILED_MONITORING=False,
+        IS_PAIRED=False
+    )
+
+def create_preset_config_pairwise() -> SimulationConfig:
+
+    return SimulationConfig(
+        SIMULATION_TIME=1500,
+        NUM_OPERATING_ROOMS=1,
+        RANDOM_SEED=42,
+        PLOT_LIVE_UPDATES=False,
+        DETAILED_MONITORING=False,
+        IS_PAIRED=True
     )
 
 
@@ -426,6 +447,7 @@ def print_results_summary(results: Dict[str, Any]):
         print(f"    Max Queue: {stats['max_queue']}")
 
 
+
 def main():
 
     args = parse_arguments()
@@ -435,6 +457,27 @@ def main():
     if args.preset_config:
 
         base_config = create_preset_config()
+    
+        configurations = {
+            "3p3r": {
+                "NUM_PREP_ROOMS": 3,
+                "NUM_RECOVERY_ROOMS": 3
+            },
+            "3p4r": {
+                "NUM_PREP_ROOMS": 3,
+                "NUM_RECOVERY_ROOMS": 4
+            },
+            "4p5r": {
+                "NUM_PREP_ROOMS": 4,
+                "NUM_RECOVERY_ROOMS": 5
+            }
+        }
+
+        results = run_multiple_configurations(base_config, configurations)
+
+    elif args.preset_config_pairwise:
+
+        base_config = create_preset_config_pairwise()
     
         configurations = {
             "3p3r": {
@@ -463,14 +506,18 @@ def main():
     # Save results to pickle
     with open(f'{save_path}/multi_config_simulation.pkl', 'wb') as f:
         pickle.dump(results, f)
+
+    
     
     # Optional: Generate comparative report
     generate_comparative_report(results)
     # Optional: Comparative Statistical Test
-    comparative_statistical_test(results)
+    if args.preset_config:
+        comparative_statistical_test(results)
     # Pairwise test (Note: doing this at the same time as the above produces nonsense
     # as it needs a random seed and this needs a fixed seed)
-    pairwise_statistical_test(results)
+    if args.preset_config_pairwise:
+        pairwise_statistical_test(results)
 
 def generate_comparative_report(results: Dict[str, List[Dict]]):
     """
@@ -504,6 +551,14 @@ def generate_comparative_report(results: Dict[str, List[Dict]]):
             print(f"    Avg Bottleneck Count: {np.mean([b['count'] for b in location_bottlenecks]):.2f}")
             print(f"    Max Queue Length: {np.mean([b['max_queue'] for b in location_bottlenecks]):.2f}")
 
+# Helper function: Compute confidence intervals
+def confidence_interval(data, confidence=0.95):
+    mean = np.mean(data)
+    lower, upper = scipy.stats.t.interval(
+        confidence, len(data) - 1, loc=mean, scale=scipy.stats.sem(data)
+    )
+    return mean, lower, upper
+
 def comparative_statistical_test(results: Dict[str, List[Dict]]):
     """
     Perform statistical tests to compare configurations
@@ -512,110 +567,148 @@ def comparative_statistical_test(results: Dict[str, List[Dict]]):
     import numpy as np
     
     configurations = list(results.keys())
-    
-    # Metrics extraction and comparison
     print("\n=== Comparative Statistical Analysis ===")
     
-    # Compare throughput (per hour)
-    throughputs = {config: [run['performance_metrics']['throughput']['per_hour'] for run in runs] 
-                   for config, runs in results.items()}
+    # Metrics extraction and comparison
+    metrics = {
+        "Throughput (patients/hour)": lambda runs: [run['performance_metrics']['throughput']['per_hour'] for run in runs],
+        "Average Wait Time (minutes)": lambda runs: [np.mean([stage['mean'] for stage in run['performance_metrics']['avg_wait_times'].values()]) for run in runs],
+        "Resource Utilization": lambda runs: [np.mean([util['mean'] for util in run['performance_metrics']['resource_utilization'].values()]) for run in runs],
+        "Blocking Probability": lambda runs: [bt / (SimulationConfig.SIMULATION_TIME) for bt in operation_blocking_time_from_data(runs, SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME + SimulationConfig.IGNORE_TIME)]
+    }
     
-    # Compare average wait times
-    wait_times = {config: [np.mean([stage['mean'] for stage in run['performance_metrics']['avg_wait_times'].values()]) 
-                           for run in runs] 
-                  for config, runs in results.items()}
-    
-    # Compare resource utilization
-    resource_utils = {config: [np.mean([util['mean'] for util in run['performance_metrics']['resource_utilization'].values()]) 
-                               for run in runs] 
-                      for config, runs in results.items()}
-    
-    # Perform pairwise comparisons
-    metrics = [
-        ('Throughput (patients/hour)', throughputs), 
-        ('Average Wait Time (minutes)', wait_times), 
-        ('Resource Utilization', resource_utils)
-    ]
-    
-    for metric_name, metric_data in metrics:
+    for metric_name, metric_func in metrics.items():
         print(f"\nComparative Analysis for {metric_name}:")
-        config_names = list(metric_data.keys())
-        
-        for i in range(len(config_names)):
-            for j in range(i+1, len(config_names)):
-                config1, config2 = config_names[i], config_names[j]
+        for i in range(len(configurations)):
+            for j in range(i+1, len(configurations)):
+                config1, config2 = configurations[i], configurations[j]
+                values1 = metric_func(results[config1])
+                values2 = metric_func(results[config2])
                 
-                values1 = metric_data[config1]
-                values2 = metric_data[config2]
-                
-                # Perform independent t-test
                 t_statistic, p_value = stats.ttest_ind(values1, values2)
+                mean1, lower1, upper1 = confidence_interval(values1)
+                mean2, lower2, upper2 = confidence_interval(values2)
                 
                 print(f"  {config1} vs {config2}:")
-                print(f"    t-statistic: {t_statistic:.4f}")
-                print(f"    p-value: {p_value:.4f}")
+                print(f"    {config1} Mean: {mean1:.2f}, 95% CI: [{lower1:.2f}, {upper1:.2f}]")
+                print(f"    {config2} Mean: {mean2:.2f}, 95% CI: [{lower2:.2f}, {upper2:.2f}]")
+                print(f"    t-statistic: {t_statistic:.4f}, p-value: {p_value:.4f}")
                 print(f"    Significant Difference: {'Yes' if p_value < 0.05 else 'No'}")
-                
-                # Print mean and standard deviation for context
-                print(f"    {config1} - Mean: {np.mean(values1):.2f} ± {np.std(values1):.2f}")
-                print(f"    {config2} - Mean: {np.mean(values2):.2f} ± {np.std(values2):.2f}")
 
 def pairwise_statistical_test(results: Dict[str, List[Dict]]):
     """
-    Perform statistical tests to compare configurations using paired observations.
+    Perform paired statistical tests to compare configurations
     """
-    from scipy import stats
-    import numpy as np
-
     configurations = list(results.keys())
+    metrics = {
+        "Blocking Probability": lambda run: operation_blocking_time_from_data(run, SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME + SimulationConfig.IGNORE_TIME),
+        "Preparation Queue Length": lambda run: average_queue_lengths_from_data(run, "preparation", SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME + SimulationConfig.IGNORE_TIME)
+    }
 
-    # Metrics extraction and comparison
-    print("\n=== Comparative Statistical Analysis (Paired Observations) ===")
-
-    # Extract metrics for comparison
-    metrics = [
-        ('Throughput (patients/hour)', lambda run: run['performance_metrics']['throughput']['per_hour']),
-        ('Average Wait Time (minutes)', lambda run: np.mean([stage['mean'] for stage in run['performance_metrics']['avg_wait_times'].values()])),
-        ('Resource Utilization', lambda run: np.mean([util['mean'] for util in run['performance_metrics']['resource_utilization'].values()])),
-    ]
-
-    for metric_name, metric_extractor in metrics:
-        print(f"\nComparative Analysis for {metric_name}:")
-        metric_data = {config: [metric_extractor(run) for run in runs] for config, runs in results.items()}
-        config_names = list(metric_data.keys())
-
-        for i in range(len(config_names)):
-            for j in range(i + 1, len(config_names)):
-                config1, config2 = config_names[i], config_names[j]
-
-                # Ensure paired comparisons (same number of runs)
-                if len(metric_data[config1]) != len(metric_data[config2]):
-                    print(f"  {config1} vs {config2}: Cannot perform paired test (unequal run counts)")
-                    continue
-
+    for metric_name, metric_func in metrics.items():
+        print(f"\nComparative Analysis for {metric_name} (Paired):")
+        for i in range(len(configurations)):
+            for j in range(i+1, len(configurations)):
+                config1, config2 = configurations[i], configurations[j]
+                values1 = metric_func(results[config1])
+                values2 = metric_func(results[config2])
+                
                 # Compute differences
-                differences = np.array(metric_data[config1]) - np.array(metric_data[config2])
-
-                # Perform paired t-test
-                t_statistic, p_value = stats.ttest_rel(metric_data[config1], metric_data[config2])
-
-                # Compute confidence interval for mean difference
+                differences = np.array(values1) - np.array(values2)
+                t_statistic, p_value = scipy.stats.ttest_rel(values1, values2)
                 mean_diff = np.mean(differences)
-                std_err = stats.sem(differences)  # Standard error of the mean difference
-                confidence_interval = stats.t.interval(
-                    0.95,  # 95% confidence level
-                    len(differences) - 1,  # Degrees of freedom
-                    loc=mean_diff,
-                    scale=std_err
-                )
-
-                # Print results
+                lower, upper = scipy.stats.t.interval(0.95, len(differences)-1, loc=mean_diff, scale=scipy.stats.sem(differences))
+                
                 print(f"  {config1} vs {config2}:")
                 print(f"    Mean Difference: {mean_diff:.4f}")
-                print(f"    95% CI for Difference: ({confidence_interval[0]:.4f}, {confidence_interval[1]:.4f})")
-                print(f"    Paired t-statistic: {t_statistic:.4f}")
-                print(f"    p-value: {p_value:.4f}")
+                print(f"    95% CI for Difference: [{lower:.4f}, {upper:.4f}]")
+                print(f"    t-statistic: {t_statistic:.4f}, p-value: {p_value:.4f}")
                 print(f"    Significant Difference: {'Yes' if p_value < 0.05 else 'No'}")
+
+def operation_blocking_time_from_data(data, ignore_time, end_timestamp):
+    # In order to estimate from a steady state, use ignore_time
+    # to ignore events before timestamp = ignore_time
+    if end_timestamp < ignore_time: raise ValueError
+
+    timer_totals = []
+    for simulation in data:
+        operation_status = list(zip(simulation['queue_timestamps']['timestamp'], 
+                               simulation['queue_data']['operation'],
+                               simulation['queue_data']['recovery']))
+        steady_status = [event for event in operation_status if event[0] > ignore_time]
+        # Figure out what the state at time ignore_time was by checking the 
+        # last element to be left out of the steady_status, add that to start of 
+        # events list, but with timestamp at exactly ignore_time
+        state_at_ignore_time = operation_status[-len(steady_status)-1]
+        steady_status = [(ignore_time, state_at_ignore_time[1], state_at_ignore_time[2])] + steady_status
+        # Also we might have a case where the system ends at a blocked state, 
+        # thus the timer should be left to run until that point. We handle
+        # this case by adding a last_state at end_timestamp
+        last_state = steady_status[-1]
+        if last_state[0] > end_timestamp: raise ValueError
+        end_state = (end_timestamp, last_state[1], last_state[2])
+        steady_status = steady_status + [end_state]
+        timer_total = 0
+        
+        timer_on = False 
+        # Having this True should not affect the calculation, since the first event
+        # will be compared against the same timestamp as itself, thus contributing
+        # a net zero to timer_total
+        
+        previous_timestamp = ignore_time
+        for event in steady_status:
+            current_timestamp = event[0]
+            persons_in_operation_queue = event[1]
+            persons_in_recovery_queue = event[2]
+            if timer_on:
+                timer_total += (current_timestamp - previous_timestamp)
+            previous_timestamp = current_timestamp
+            if persons_in_operation_queue and persons_in_recovery_queue: 
+                timer_on = True
+            else:
+                timer_on = False
+                
+        timer_totals.append(timer_total)
+        
+    return timer_totals
+
+def preparation_capacities(data):
+    return [simulation['summary_statistics']['resource_utilization']['prep_rooms']['mean'] for simulation in data]
+    
+def average_queue_lengths_from_data(data, location, ignore_time, end_timestamp):
+    # In order to estimate from a steady state, use ignore_time
+    # to ignore events before timestamp = ignore_time
+    if end_timestamp < ignore_time: raise ValueError
+    queue_averages = []
+    for simulation in data:
+        queue_status = list(zip(simulation['queue_timestamps']['timestamp'], simulation['queue_data'][location]))
+        steady_status = [event for event in queue_status if event[0] > ignore_time]
+        # Figure out what the state at time ignore_time was by checking the 
+        # last element to be left out of the steady_status, add that to start of 
+        # events list, but with timestamp at exactly ignore_time
+        state_at_ignore_time = queue_status[-len(steady_status)-1]
+        steady_status = [(ignore_time, state_at_ignore_time[1])] + steady_status
+        # Also we might have a case where the system ends at a blocked state, 
+        # thus the timer should be left to run until that point. We handle
+        # this case by adding a last_state at end_timestamp
+        last_state = steady_status[-1]
+        if last_state[0] > end_timestamp: raise ValueError
+        end_state = (end_timestamp, last_state[1])
+        steady_status = steady_status + [end_state]
+        
+        previous_timestamp = ignore_time 
+        queue_mass = 0
+        # This in effect integration for a step function
+        
+        for event in steady_status:
+            current_timestamp = event[0]
+            queue_mass += event[1] * (current_timestamp - previous_timestamp)
+            previous_timestamp = current_timestamp
+        
+        queue_averages.append(queue_mass / (end_timestamp - ignore_time))
+   
+    return queue_averages
+    
 
 
 if __name__ == "__main__":

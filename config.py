@@ -30,11 +30,12 @@ class SimulationConfig:
     URGENT_PRIORITY_FACTOR: int = 2
     
     # Visualization parameters
-    PLOT_LIVE_UPDATES: bool = True
+    PLOT_LIVE_UPDATES: bool = False
     UPDATE_INTERVAL: float = 5.0
     
     # Random seed for reproducibility
     RANDOM_SEED: Optional[int] = 42
+    IS_PAIRED: bool = False
 
     def __post_init__(self):
         
