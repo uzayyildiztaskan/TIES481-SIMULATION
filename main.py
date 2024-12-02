@@ -263,7 +263,7 @@ class SimulationRunner:
         plt.xlabel("Stage")
         plt.ylabel("Wait Time (minutes)")
 
-def run_multiple_configurations(base_config: SimulationConfig, configurations: List[Dict[str, Any]], runs_per_config: int = 20):
+def run_multiple_configurations(base_config: SimulationConfig, configurations: List[Dict[str, Any]], runs_per_config: int = 3):
     """
     Run simulations across multiple configurations
     
@@ -603,7 +603,8 @@ def pairwise_statistical_test(results: Dict[str, List[Dict]]):
     configurations = list(results.keys())
     metrics = {
         "Blocking Probability": lambda run: operation_blocking_time_from_data(run, SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME),
-        "Preparation Queue Length": lambda run: average_queue_lengths_from_data(run, "preparation", SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME)
+        "Preparation Queue Length": lambda run: average_queue_lengths_from_data(run, "preparation", SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME),
+        "Average Preparation Queue Length": lambda run: [sim["performance_metrics"]["resource_utilization"]["prep_rooms"]["mean"] for sim in run]
     }
 
     for metric_name, metric_func in metrics.items():
