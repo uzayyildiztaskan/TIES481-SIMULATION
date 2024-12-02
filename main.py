@@ -604,7 +604,7 @@ def pairwise_statistical_test(results: Dict[str, List[Dict]]):
     metrics = {
         "Blocking Probability": lambda run: operation_blocking_time_from_data(run, SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME),
         "Preparation Queue Length": lambda run: average_queue_lengths_from_data(run, "preparation", SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME),
-        "Average Preparation Queue Length": lambda run: [sim["performance_metrics"]["resource_utilization"]["prep_rooms"]["mean"] for sim in run]
+        "Preparation Room Utilization": lambda run: [sim["performance_metrics"]["resource_utilization"]["prep_rooms"]["mean"] for sim in run]
     }
 
     for metric_name, metric_func in metrics.items():
