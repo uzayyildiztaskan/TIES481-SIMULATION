@@ -534,12 +534,12 @@ def generate_comparative_report(results: Dict[str, List[Dict]]):
         throughputs = [run['performance_metrics']['throughput']['per_hour'] for run in config_runs]
         wait_times = [np.mean([stage['mean'] for stage in run['performance_metrics']['avg_wait_times'].values()]) 
                       for run in config_runs]
-        resource_utils = [np.mean([util['mean'] for util in run['performance_metrics']['resource_utilization'].values()]) 
+        preparation_utils = [float(run['performance_metrics']['resource_utilization']['prep_rooms']['mean'])
                           for run in config_runs]
         
         print(f"Throughput (patients/hour): {np.mean(throughputs):.2f} ± {np.std(throughputs):.2f}")
         print(f"Average Wait Time: {np.mean(wait_times):.2f} ± {np.std(wait_times):.2f} minutes")
-        print(f"Resource Utilization: {np.mean(resource_utils):.2%} ± {np.std(resource_utils):.2%}")
+        print(f"Preparation Room Utilization: {np.mean(preparation_utils):.2%} ± {np.std(preparation_utils):.2%}")
         
         # Bottleneck analysis
         bottlenecks = [run['performance_metrics']['bottlenecks'] for run in config_runs]
@@ -572,7 +572,7 @@ def comparative_statistical_test(results: Dict[str, List[Dict]]):
     metrics = {
         "Throughput (patients/hour)": lambda runs: [run['performance_metrics']['throughput']['per_hour'] for run in runs],
         "Average Wait Time (minutes)": lambda runs: [np.mean([stage['mean'] for stage in run['performance_metrics']['avg_wait_times'].values()]) for run in runs],
-        "Resource Utilization": lambda runs: [np.mean([util['mean'] for util in run['performance_metrics']['resource_utilization'].values()]) for run in runs],
+        "Preparation Room Utilization": lambda runs: [float(run['performance_metrics']['resource_utilization']['prep_rooms']['mean']) for run in runs],
         "Blocking Probability": lambda runs: [bt / (SimulationConfig.SIMULATION_TIME) for bt in operation_blocking_time_from_data(runs, SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME + SimulationConfig.IGNORE_TIME)]
     }
     
