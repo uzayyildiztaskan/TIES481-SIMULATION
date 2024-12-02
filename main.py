@@ -541,6 +541,7 @@ def generate_comparative_report(results: Dict[str, List[Dict]]):
         print(f"Average Wait Time: {np.mean(wait_times):.2f} ± {np.std(wait_times):.2f} minutes")
         print(f"Preparation Room Utilization: {np.mean(preparation_utils):.2%} ± {np.std(preparation_utils):.2%}")
         
+        
         # Bottleneck analysis
         bottlenecks = [run['performance_metrics']['bottlenecks'] for run in config_runs]
         print("Bottleneck Summary:")
@@ -573,7 +574,8 @@ def comparative_statistical_test(results: Dict[str, List[Dict]]):
         "Throughput (patients/hour)": lambda runs: [run['performance_metrics']['throughput']['per_hour'] for run in runs],
         "Average Wait Time (minutes)": lambda runs: [np.mean([stage['mean'] for stage in run['performance_metrics']['avg_wait_times'].values()]) for run in runs],
         "Preparation Room Utilization": lambda runs: [float(run['performance_metrics']['resource_utilization']['prep_rooms']['mean']) for run in runs],
-        "Blocking Probability": lambda runs: [bt / (SimulationConfig.SIMULATION_TIME) for bt in operation_blocking_time_from_data(runs, SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME + SimulationConfig.IGNORE_TIME)]
+        "Blocking Probability": lambda runs: [bt / (SimulationConfig.SIMULATION_TIME) for bt in operation_blocking_time_from_data(runs, SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME)],
+        "Average Preparation Queue Length": lambda runs: [pq for pq in average_queue_lengths_from_data(runs, 'preparation', SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME)]
     }
     
     for metric_name, metric_func in metrics.items():
@@ -600,8 +602,8 @@ def pairwise_statistical_test(results: Dict[str, List[Dict]]):
     """
     configurations = list(results.keys())
     metrics = {
-        "Blocking Probability": lambda run: operation_blocking_time_from_data(run, SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME + SimulationConfig.IGNORE_TIME),
-        "Preparation Queue Length": lambda run: average_queue_lengths_from_data(run, "preparation", SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME + SimulationConfig.IGNORE_TIME)
+        "Blocking Probability": lambda run: operation_blocking_time_from_data(run, SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME),
+        "Preparation Queue Length": lambda run: average_queue_lengths_from_data(run, "preparation", SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME)
     }
 
     for metric_name, metric_func in metrics.items():
@@ -628,7 +630,7 @@ def operation_blocking_time_from_data(data, ignore_time, end_timestamp):
     # In order to estimate from a steady state, use ignore_time
     # to ignore events before timestamp = ignore_time
     if end_timestamp < ignore_time: raise ValueError
-
+ 
     timer_totals = []
     for simulation in data:
         operation_status = list(zip(simulation['queue_timestamps']['timestamp'], 
