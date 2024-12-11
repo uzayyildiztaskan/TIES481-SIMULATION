@@ -96,6 +96,7 @@ class Hospital:
         yield self.env.timeout(recovery_time)
         patient.end_recovery(self.env.now)
         
+        self.prep_rooms.release(recovery_request)
         self.active_patients.remove(patient)
         self._record_patient_completion(patient)
 
