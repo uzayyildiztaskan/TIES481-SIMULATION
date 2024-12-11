@@ -68,31 +68,33 @@ class Hospital:
     
     def _process_patient(self, patient: Patient):
 
-        with self.prep_rooms.request() as prep_request:
-            yield prep_request
-            patient.start_preparation(self.env.now)
-            
-            prep_time = random.expovariate(1.0 / self.config.MEAN_PREP_TIME)
-            yield self.env.timeout(prep_time)
-            patient.end_preparation(self.env.now)
+        prep_request = self.prep_rooms.request()
+        yield prep_request
+        patient.start_preparation(self.env.now)
         
-        with self.operating_rooms.request() as op_request:
-
-            yield op_request
-            patient.start_operation(self.env.now)
-            
-            operation_time = random.expovariate(1.0 / self.config.MEAN_OPERATION_TIME)
-            yield self.env.timeout(operation_time)
-            patient.end_operation(self.env.now)
+        prep_time = random.expovariate(1.0 / self.config.MEAN_PREP_TIME)
+        yield self.env.timeout(prep_time)
+        patient.end_preparation(self.env.now)
         
-        with self.recovery_rooms.request() as recovery_request:
+        op_request = self.operating_rooms.request()
 
-            yield recovery_request
-            patient.start_recovery(self.env.now)
+        yield op_request
+        self.prep_rooms.release(prep_request)
+        patient.start_operation(self.env.now)
             
-            recovery_time = random.expovariate(1.0 / self.config.MEAN_RECOVERY_TIME)
-            yield self.env.timeout(recovery_time)
-            patient.end_recovery(self.env.now)
+        operation_time = random.expovariate(1.0 / self.config.MEAN_OPERATION_TIME)
+        yield self.env.timeout(operation_time)
+        patient.end_operation(self.env.now)
+        
+        recovery_request = self.recovery_rooms.request()
+
+        yield recovery_request
+        self.prep_rooms.release(op_request)
+        patient.start_recovery(self.env.now)
+            
+        recovery_time = random.expovariate(1.0 / self.config.MEAN_RECOVERY_TIME)
+        yield self.env.timeout(recovery_time)
+        patient.end_recovery(self.env.now)
         
         self.active_patients.remove(patient)
         self._record_patient_completion(patient)
