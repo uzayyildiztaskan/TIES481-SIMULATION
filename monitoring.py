@@ -56,43 +56,58 @@ class EnhancedMonitor:
     
     
     def _calculate_waiting_times(self) -> Dict[str, Dict[str, float]]:
-        
+        """
+        Calculate waiting time statistics with proper error handling and data validation
+        """
         waiting_times = defaultdict(list)
-
-        for record in self.patient_records:
-
-            for phase in ['prep', 'operation', 'recovery']:
-
-                wait_time = record.get(f'{phase}_wait_time', 0)
-                waiting_times[phase].append(wait_time)
+        stages = ['prep', 'operation', 'recovery']
         
-        return {
-            phase: {
-                'mean': np.mean(times),
-                'median': np.median(times),
-                'std': np.std(times),
-                'max': max(times),
-                'sum': sum(times)
-            }
-            for phase, times in waiting_times.items()
-            if times
-        }
+        for record in self.patient_records:
+            for stage in stages:
+                wait_time = record.get(f'{stage}_wait_time', 0)
+                if wait_time is not None and wait_time >= 0:  # Data validation
+                    waiting_times[stage].append(wait_time)
+        
+        stats = {}
+        for stage, times in waiting_times.items():
+            if times:  # Only calculate stats if we have data
+                stats[stage] = {
+                    'mean': float(np.mean(times)),
+                    'median': float(np.median(times)),
+                    'std': float(np.std(times)) if len(times) > 1 else 0,
+                    'max': float(max(times)),
+                    'sum': float(sum(times))
+                }
+            else:
+                stats[stage] = {
+                    'mean': 0, 'median': 0, 'std': 0, 'max': 0, 'sum': 0
+                }
+        
+        return stats
     
     
     def _calculate_resource_utilization(self) -> Dict[str, Dict[str, float]]:
-        
+        """
+        Calculate resource utilization with improved error handling
+        """
         utilization_stats = {}
-
+        
         for resource, usage_data in self.resource_usage.items():
-
-            times, counts = zip(*usage_data)
-            utilization_stats[resource] = {
-                'mean': np.mean(counts),
-                'max': max(counts),
-                'min': min(counts),
-                'std': np.std(counts)
-            }
-
+            if usage_data:  # Check if we have data
+                times, counts = zip(*usage_data)
+                counts = [float(c) for c in counts]  # Ensure float type
+                
+                utilization_stats[resource] = {
+                    'mean': float(np.mean(counts)),
+                    'max': float(max(counts)),
+                    'min': float(min(counts)),
+                    'std': float(np.std(counts)) if len(counts) > 1 else 0
+                }
+            else:
+                utilization_stats[resource] = {
+                    'mean': 0, 'max': 0, 'min': 0, 'std': 0
+                }
+        
         return utilization_stats
     
 

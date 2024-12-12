@@ -245,23 +245,68 @@ class SimulationRunner:
     def _plot_resource_heatmap(self):
         
         
-        utilization_data = pd.DataFrame(self.monitor.resource_usage)
-    
+        """
+        Plot resource utilization heatmap with improved data structure
+        """
+        resource_data = self.monitor.get_summary_statistics()['resource_utilization']
+        
+        # Prepare data for heatmap
+        resources = list(resource_data.keys())
+        metrics = ['mean', 'max', 'min', 'std']
+        
+        data = np.zeros((len(resources), len(metrics)))
+        for i, resource in enumerate(resources):
+            for j, metric in enumerate(metrics):
+                data[i, j] = resource_data[resource][metric]
+        
+        plt.figure(figsize=(10, 6))
         plt.title("Resource Utilization Heatmap")
-        sns.heatmap(utilization_data, cmap='YlOrRd',
-                   xticklabels=True, yticklabels=True)
-        plt.xlabel("Time Period")
+        
+        # Create heatmap with annotations
+        sns.heatmap(data, annot=True, fmt='.2f',
+                    xticklabels=metrics,
+                    yticklabels=resources,
+                    cmap='YlOrRd')
+        
+        plt.xlabel("Metric")
         plt.ylabel("Resource")
     
 
     def _plot_wait_distributions(self):
         
-        wait_times = pd.DataFrame(self.monitor.get_summary_statistics()['waiting_times'])
+        """
+        Plot waiting time distributions with improved data handling
+        """
+        wait_times = self.monitor.get_summary_statistics()['waiting_times']
         
+        # Prepare data for plotting
+        data = []
+        for stage, stats in wait_times.items():
+            data.append({
+                'Stage': stage,
+                'Wait Time': stats['mean'],
+                'Std Dev': stats['std']
+            })
+        
+        df = pd.DataFrame(data)
+        
+        plt.figure(figsize=(12, 6))
         plt.title("Waiting Time Distributions by Stage")
-        sns.boxplot(data=wait_times)
+        
+        # Create bar plot with error bars
+        bars = plt.bar(df['Stage'], df['Wait Time'], yerr=df['Std Dev'],
+                    capsize=5, alpha=0.8)
+        
+        # Add value labels on top of bars
+        for bar in bars:
+            height = bar.get_height()
+            plt.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.1f}',
+                    ha='center', va='bottom')
+        
         plt.xlabel("Stage")
-        plt.ylabel("Wait Time (minutes)")
+        plt.ylabel("Average Wait Time (minutes)")
+        plt.grid(True, alpha=0.3)
 
 def run_multiple_configurations(base_config: SimulationConfig, configurations: List[Dict[str, Any]], runs_per_config: int = 20):
     """

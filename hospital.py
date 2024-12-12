@@ -67,7 +67,10 @@ class Hospital:
 
     
     def _process_patient(self, patient: Patient):
-
+        """
+        Process a patient through the hospital system with proper resource management.
+        """
+        # Preparation Stage
         prep_request = self.prep_rooms.request()
         yield prep_request
         patient.start_preparation(self.env.now)
@@ -76,9 +79,10 @@ class Hospital:
         yield self.env.timeout(prep_time)
         patient.end_preparation(self.env.now)
         
+        # Operation Stage
         op_request = self.operating_rooms.request()
-
         yield op_request
+        # Release prep room before starting operation
         self.prep_rooms.release(prep_request)
         patient.start_operation(self.env.now)
             
@@ -86,19 +90,24 @@ class Hospital:
         yield self.env.timeout(operation_time)
         patient.end_operation(self.env.now)
         
+        # Recovery Stage
         recovery_request = self.recovery_rooms.request()
-
         yield recovery_request
-        self.prep_rooms.release(op_request)
+        # Release operating room before starting recovery
+        self.operating_rooms.release(op_request)
         patient.start_recovery(self.env.now)
             
         recovery_time = random.expovariate(1.0 / self.config.MEAN_RECOVERY_TIME)
         yield self.env.timeout(recovery_time)
         patient.end_recovery(self.env.now)
         
-        self.prep_rooms.release(recovery_request)
+        # Release recovery room at discharge
+        self.recovery_rooms.release(recovery_request)
         self.active_patients.remove(patient)
         self._record_patient_completion(patient)
+        
+        # Update monitoring after each stage transition
+        self._update_monitor()
 
     
     def _update_monitor(self):
