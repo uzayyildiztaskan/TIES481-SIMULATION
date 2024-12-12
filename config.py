@@ -27,7 +27,11 @@ class SimulationConfig:
     
     # Patient routing parameters
     URGENT_PATIENT_RATIO: float = 0.1
-    URGENT_PRIORITY_FACTOR: int = 2
+    URGENT_PRIORITY_FACTOR: int = 2    
+    URGENT_PREP_TIME_FACTOR = 0.7  # Urgent patients get faster preparation
+    URGENT_OPERATION_TIME_MEAN_FACTOR = 0.8  # Shorter mean operation time
+    URGENT_OPERATION_TIME_VAR_FACTOR = 0.4  # Higher variance in operation time
+    URGENT_RECOVERY_TIME_FACTOR = 1.2  # Longer recovery time due to urgency
     
     # Visualization parameters
     PLOT_LIVE_UPDATES: bool = False

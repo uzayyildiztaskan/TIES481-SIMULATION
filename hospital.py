@@ -67,46 +67,62 @@ class Hospital:
 
     
     def _process_patient(self, patient: Patient):
+        
         """
         Process a patient through the hospital system with proper resource management.
+        Different operation time distributions for urgent vs non-urgent patients.
         """
         # Preparation Stage
-        prep_request = self.prep_rooms.request()
+        prep_request = self.prep_rooms.request(priority=1 if patient.urgent else 2)
         yield prep_request
         patient.start_preparation(self.env.now)
         
-        prep_time = random.expovariate(1.0 / self.config.MEAN_PREP_TIME)
+        prep_time = random.expovariate(1.0 / (
+            self.config.MEAN_PREP_TIME * self.config.URGENT_PREP_TIME_FACTOR if patient.urgent 
+            else self.config.MEAN_PREP_TIME
+        ))
         yield self.env.timeout(prep_time)
         patient.end_preparation(self.env.now)
         
         # Operation Stage
-        op_request = self.operating_rooms.request()
+        op_request = self.operating_rooms.request(priority=1 if patient.urgent else 2)
         yield op_request
-        # Release prep room before starting operation
         self.prep_rooms.release(prep_request)
         patient.start_operation(self.env.now)
-            
-        operation_time = random.expovariate(1.0 / self.config.MEAN_OPERATION_TIME)
+        
+        # Different distribution parameters for urgent vs non-urgent patients
+        if patient.urgent:
+            # Urgent operations tend to be shorter but more variable
+            operation_time = random.normalvariate(
+                mu=self.config.MEAN_OPERATION_TIME * self.config.URGENT_OPERATION_TIME_MEAN_FACTOR,
+                sigma=self.config.MEAN_OPERATION_TIME * self.config.URGENT_OPERATION_TIME_VAR_FACTOR
+            )
+        else:
+            # Regular operations follow the original exponential distribution
+            operation_time = random.expovariate(1.0 / self.config.MEAN_OPERATION_TIME)
+        
+        # Ensure operation time is positive
+        operation_time = max(operation_time, 0.1)
         yield self.env.timeout(operation_time)
         patient.end_operation(self.env.now)
         
         # Recovery Stage
-        recovery_request = self.recovery_rooms.request()
+        recovery_request = self.recovery_rooms.request(priority=1 if patient.urgent else 2)
         yield recovery_request
-        # Release operating room before starting recovery
         self.operating_rooms.release(op_request)
         patient.start_recovery(self.env.now)
-            
-        recovery_time = random.expovariate(1.0 / self.config.MEAN_RECOVERY_TIME)
+        
+        recovery_time = random.expovariate(1.0 / (
+            self.config.MEAN_RECOVERY_TIME * self.config.URGENT_RECOVERY_TIME_FACTOR if patient.urgent 
+            else self.config.MEAN_RECOVERY_TIME
+        ))
         yield self.env.timeout(recovery_time)
         patient.end_recovery(self.env.now)
         
-        # Release recovery room at discharge
         self.recovery_rooms.release(recovery_request)
         self.active_patients.remove(patient)
         self._record_patient_completion(patient)
         
-        # Update monitoring after each stage transition
         self._update_monitor()
 
     
