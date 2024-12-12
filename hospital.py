@@ -21,9 +21,9 @@ class Hospital:
         self.monitor = monitor
         self.router = router
         
-        self.prep_rooms = simpy.Resource(env, capacity=config.NUM_PREP_ROOMS)
-        self.operating_rooms = simpy.Resource(env, capacity=config.NUM_OPERATING_ROOMS)
-        self.recovery_rooms = simpy.Resource(env, capacity=config.NUM_RECOVERY_ROOMS)
+        self.prep_rooms = simpy.PriorityResource(env, capacity=config.NUM_PREP_ROOMS)
+        self.operating_rooms = simpy.PriorityResource(env, capacity=config.NUM_OPERATING_ROOMS)
+        self.recovery_rooms = simpy.PriorityResource(env, capacity=config.NUM_RECOVERY_ROOMS)
         
         self.router.hospital_state.update({
 
@@ -67,13 +67,13 @@ class Hospital:
 
     
     def _process_patient(self, patient: Patient):
-        
         """
         Process a patient through the hospital system with proper resource management.
         Different operation time distributions for urgent vs non-urgent patients.
         """
         # Preparation Stage
-        prep_request = self.prep_rooms.request(priority=1 if patient.urgent else 2)
+        # Lower number = higher priority
+        prep_request = self.prep_rooms.request(priority=0 if patient.urgent else 1)
         yield prep_request
         patient.start_preparation(self.env.now)
         
@@ -85,7 +85,7 @@ class Hospital:
         patient.end_preparation(self.env.now)
         
         # Operation Stage
-        op_request = self.operating_rooms.request(priority=1 if patient.urgent else 2)
+        op_request = self.operating_rooms.request(priority=0 if patient.urgent else 1)
         yield op_request
         self.prep_rooms.release(prep_request)
         patient.start_operation(self.env.now)
@@ -107,7 +107,7 @@ class Hospital:
         patient.end_operation(self.env.now)
         
         # Recovery Stage
-        recovery_request = self.recovery_rooms.request(priority=1 if patient.urgent else 2)
+        recovery_request = self.recovery_rooms.request(priority=0 if patient.urgent else 1)
         yield recovery_request
         self.operating_rooms.release(op_request)
         patient.start_recovery(self.env.now)

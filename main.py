@@ -242,8 +242,7 @@ class SimulationRunner:
         plt.legend(title="Patient Type")
     
 
-    def _plot_resource_heatmap(self):
-        
+    def _plot_resource_heatmap(self):       
         
         """
         Plot resource utilization heatmap with improved data structure
