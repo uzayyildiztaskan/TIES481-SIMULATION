@@ -523,17 +523,19 @@ def main():
         base_config = create_preset_config_pairwise()
     
         configurations = {
-            "3p3r": {
+            "exp": {
                 "NUM_PREP_ROOMS": 3,
-                "NUM_RECOVERY_ROOMS": 3
+                "NUM_RECOVERY_ROOMS": 3,
+                "INTERARRIVAL_TIME": "exp(25)",
+                "PREPARATION_TIME": "unif(30,50)",
+                "RECOVERY_TIME": "unif(30,50)"
             },
-            "3p4r": {
+            "unif": {
                 "NUM_PREP_ROOMS": 3,
-                "NUM_RECOVERY_ROOMS": 4
-            },
-            "4p5r": {
-                "NUM_PREP_ROOMS": 4,
-                "NUM_RECOVERY_ROOMS": 5
+                "NUM_RECOVERY_ROOMS": 3,
+                "INTERARRIVAL_TIME": "unif(20,30)",
+                "PREPARATION_TIME": "unif(30,50)",
+                "RECOVERY_TIME": "unif(30,50)"
             }
         }
         

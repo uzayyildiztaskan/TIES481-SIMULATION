@@ -10,6 +10,7 @@ from routing import SmartRouter
 
 
 class Hospital:
+    
 
     """Simulates a hospital with preparation, operation, and recovery facilities."""
     
@@ -48,8 +49,9 @@ class Hospital:
 
         while True:
 
-            interarrival_time = random.expovariate(1.0 / self.config.MEAN_INTERARRIVAL_TIME)
-            yield self.env.timeout(interarrival_time)
+            # Get the distribution for interarrival time and call it
+            interarrival_function = self.config.get_time_function("interarrival")
+            yield self.env.timeout(interarrival_function())
             
             self.patient_counter += 1
             urgent = random.random() < self.config.URGENT_PATIENT_RATIO
@@ -71,16 +73,14 @@ class Hospital:
         Process a patient through the hospital system with proper resource management.
         Different operation time distributions for urgent vs non-urgent patients.
         """
+        preparation_function = self.config.get_time_function("preparation")
         # Preparation Stage
         # Lower number = higher priority
         prep_request = self.prep_rooms.request(priority=0 if patient.urgent else 1)
         yield prep_request
         patient.start_preparation(self.env.now)
-        
-        prep_time = random.expovariate(1.0 / (
-            self.config.MEAN_PREP_TIME * self.config.URGENT_PREP_TIME_FACTOR if patient.urgent 
-            else self.config.MEAN_PREP_TIME
-        ))
+        prep_time = preparation_function() * (self.config.URGENT_PREP_TIME_FACTOR if patient.urgent
+                                            else 1)
         yield self.env.timeout(prep_time)
         patient.end_preparation(self.env.now)
         
@@ -107,15 +107,14 @@ class Hospital:
         patient.end_operation(self.env.now)
         
         # Recovery Stage
+        recovery_function = self.config.get_time_function("recovery")
         recovery_request = self.recovery_rooms.request(priority=0 if patient.urgent else 1)
         yield recovery_request
         self.operating_rooms.release(op_request)
         patient.start_recovery(self.env.now)
         
-        recovery_time = random.expovariate(1.0 / (
-            self.config.MEAN_RECOVERY_TIME * self.config.URGENT_RECOVERY_TIME_FACTOR if patient.urgent 
-            else self.config.MEAN_RECOVERY_TIME
-        ))
+        recovery_time = recovery_function() * (self.config.URGENT_PREP_TIME_FACTOR if patient.urgent
+                                            else 1)
         yield self.env.timeout(recovery_time)
         patient.end_recovery(self.env.now)
         
