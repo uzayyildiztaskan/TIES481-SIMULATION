@@ -523,19 +523,55 @@ def main():
         base_config = create_preset_config_pairwise()
     
         configurations = {
-            "exp": {
+            "base": {
+                "NUM_PREP_ROOMS": 3,
+                "NUM_RECOVERY_ROOMS": 3,
+                "INTERARRIVAL_TIME": "exp(25)",
+                "PREPARATION_TIME": "exp(40)",
+                "RECOVERY_TIME": "exp(40)"
+            },
+            "extra prep": {
+                "NUM_PREP_ROOMS": 4,
+                "NUM_RECOVERY_ROOMS": 3,
+                "INTERARRIVAL_TIME": "exp(25)",
+                "PREPARATION_TIME": "exp(40)",
+                "RECOVERY_TIME": "exp(40)"
+            },
+            "extra rec": {
+                "NUM_PREP_ROOMS": 3,
+                "NUM_RECOVERY_ROOMS": 4,
+                "INTERARRIVAL_TIME": "exp(25)",
+                "PREPARATION_TIME": "exp(40)",
+                "RECOVERY_TIME": "exp(40)"
+            },
+            "unif interarrival": {
+                "NUM_PREP_ROOMS": 3,
+                "NUM_RECOVERY_ROOMS": 3,
+                "INTERARRIVAL_TIME": "unif(20,30)",
+                "PREPARATION_TIME": "exp(40)",
+                "RECOVERY_TIME": "exp(40)"
+            },
+            "unif prep": {
                 "NUM_PREP_ROOMS": 3,
                 "NUM_RECOVERY_ROOMS": 3,
                 "INTERARRIVAL_TIME": "exp(25)",
                 "PREPARATION_TIME": "unif(30,50)",
-                "RECOVERY_TIME": "unif(30,50)"
+                "RECOVERY_TIME": "exp(40)"
             },
-            "unif": {
+            "unif rec": {
                 "NUM_PREP_ROOMS": 3,
                 "NUM_RECOVERY_ROOMS": 3,
-                "INTERARRIVAL_TIME": "unif(20,30)",
-                "PREPARATION_TIME": "unif(30,50)",
+                "INTERARRIVAL_TIME": "exp(25)",
+                "PREPARATION_TIME": "exp(40)",
                 "RECOVERY_TIME": "unif(30,50)"
+            },
+            "extra urgent": {
+                "NUM_PREP_ROOMS": 3,
+                "NUM_RECOVERY_ROOMS": 3,
+                "INTERARRIVAL_TIME": "exp(25)",
+                "PREPARATION_TIME": "exp(40)",
+                "RECOVERY_TIME": "exp(40)",
+                "URGENT_PATIENT_RATIO": 0.8
             }
         }
         
