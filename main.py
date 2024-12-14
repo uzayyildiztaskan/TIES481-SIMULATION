@@ -590,8 +590,8 @@ def main():
 
     
     
-    # Optional: Generate comparative report
-    generate_comparative_report(results)
+    
+    
     # Optional: Comparative Statistical Test
     if args.preset_config:
         comparative_statistical_test(results)
@@ -599,6 +599,8 @@ def main():
     # as it needs a random seed and this needs a fixed seed)
     if args.preset_config_pairwise:
         pairwise_statistical_test(results)
+        # Optional: Generate comparative report
+        generate_comparative_report(results)
 
 def generate_comparative_report(results: Dict[str, List[Dict]]):
     """
