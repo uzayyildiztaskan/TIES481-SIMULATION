@@ -49,7 +49,8 @@ class EnhancedMonitor:
             },
             'waiting_times': self._calculate_waiting_times(),
             'resource_utilization': self._calculate_resource_utilization(),
-            'bottleneck_analysis': self._analyze_bottlenecks()
+            'bottleneck_analysis': self._analyze_bottlenecks(),
+            'full_patient_records': self.patient_records
         }
 
         return stats
