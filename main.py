@@ -408,6 +408,8 @@ def parse_arguments() -> argparse.Namespace:
                        help="Runs the simulation with the preset configurations set for task 3")
     parser.add_argument("--preset-config-pairwise", action="store_true",
                        help="Runs the simulation with the preset configurations pairwise for task 3")
+    parser.add_argument("--preset-config-regression", action="store_true",
+                       help="Runs the simulation with the preset configurations and does the regression analysis thing.")
     
     return parser.parse_args()
 
@@ -516,6 +518,29 @@ def main():
             }
         }
 
+        results = run_multiple_configurations(base_config, configurations)
+
+    elif args.preset_config_pairwise:
+
+        base_config = create_preset_config_pairwise()
+    
+        configurations = {
+            "base": {
+                "NUM_PREP_ROOMS": 3,
+                "NUM_RECOVERY_ROOMS": 3,
+                "INTERARRIVAL_TIME": "exp(25)",
+                "PREPARATION_TIME": "exp(40)",
+                "RECOVERY_TIME": "exp(40)"
+            },
+            "extra prep": {
+                "NUM_PREP_ROOMS": 4,
+                "NUM_RECOVERY_ROOMS": 3,
+                "INTERARRIVAL_TIME": "exp(25)",
+                "PREPARATION_TIME": "exp(40)",
+                "RECOVERY_TIME": "exp(40)"
+            }
+        }
+        
         results = run_multiple_configurations(base_config, configurations)
 
     elif args.preset_config_pairwise:
