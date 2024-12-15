@@ -17,6 +17,7 @@ from hospital import Hospital
 from monitoring import EnhancedMonitor
 from visualization import SimulationVisualizer
 from routing import SmartRouter
+from regression_configs import REG_CONFIGURATIONS, REG_CODED_CONFIGURATIONS
 
 import pickle
 
@@ -561,47 +562,16 @@ def main():
                 "INTERARRIVAL_TIME": "exp(25)",
                 "PREPARATION_TIME": "exp(40)",
                 "RECOVERY_TIME": "exp(40)"
-            },
-            "extra rec": {
-                "NUM_PREP_ROOMS": 3,
-                "NUM_RECOVERY_ROOMS": 4,
-                "INTERARRIVAL_TIME": "exp(25)",
-                "PREPARATION_TIME": "exp(40)",
-                "RECOVERY_TIME": "exp(40)"
-            },
-            "unif interarrival": {
-                "NUM_PREP_ROOMS": 3,
-                "NUM_RECOVERY_ROOMS": 3,
-                "INTERARRIVAL_TIME": "unif(20,30)",
-                "PREPARATION_TIME": "exp(40)",
-                "RECOVERY_TIME": "exp(40)"
-            },
-            "unif prep": {
-                "NUM_PREP_ROOMS": 3,
-                "NUM_RECOVERY_ROOMS": 3,
-                "INTERARRIVAL_TIME": "exp(25)",
-                "PREPARATION_TIME": "unif(30,50)",
-                "RECOVERY_TIME": "exp(40)"
-            },
-            "unif rec": {
-                "NUM_PREP_ROOMS": 3,
-                "NUM_RECOVERY_ROOMS": 3,
-                "INTERARRIVAL_TIME": "exp(25)",
-                "PREPARATION_TIME": "exp(40)",
-                "RECOVERY_TIME": "unif(30,50)"
-            },
-            "extra urgent": {
-                "NUM_PREP_ROOMS": 3,
-                "NUM_RECOVERY_ROOMS": 3,
-                "INTERARRIVAL_TIME": "exp(25)",
-                "PREPARATION_TIME": "exp(40)",
-                "RECOVERY_TIME": "exp(40)",
-                "URGENT_PATIENT_RATIO": 0.8
             }
         }
         
         results = run_multiple_configurations(base_config, configurations)
+    elif args.preset_config_regression:
+        base_config = create_preset_config()
 
+        configurations = REG_CONFIGURATIONS
+
+        results = run_multiple_configurations(base_config, configurations)
     else:
 
         base_config = create_config_from_args(args)
@@ -626,6 +596,9 @@ def main():
         pairwise_statistical_test(results)
         # Optional: Generate comparative report
         generate_comparative_report(results)
+
+    if args.preset_config_regression:
+        regression_analysis(results)
 
 def generate_comparative_report(results: Dict[str, List[Dict]]):
     """
@@ -667,6 +640,55 @@ def confidence_interval(data, confidence=0.95):
         confidence, len(data) - 1, loc=mean, scale=scipy.stats.sem(data)
     )
     return mean, lower, upper
+
+def extract_avg_queue_lengths(results):
+    """
+    Extracts the overall average preparation queue length for each configuration.
+    """
+    avg_queue_lengths = {}
+    for config_name, runs in results.items():
+        # Extract the list of queue lengths for all runs
+        queue_lengths = average_queue_lengths_from_data(
+            runs, 'preparation', SimulationConfig.IGNORE_TIME, SimulationConfig.SIMULATION_TIME
+        )
+        # Calculate the mean of the queue lengths
+        avg_queue_lengths[config_name] = np.mean(queue_lengths)
+    return avg_queue_lengths
+
+def regression_analysis(results: Dict[str, List[Dict]]):
+    # Simple Linear Regression using coded values
+    import statsmodels.api as sm
+    
+    avg_queue_lengths = extract_avg_queue_lengths(results)
+    # Constructing a dataframe for regression
+    data = []
+    for config_name, avg_length in avg_queue_lengths.items():
+        row = list(REG_CODED_CONFIGURATIONS[config_name].values()) + [avg_length]
+        data.append(row)
+
+    
+    df = pd.DataFrame(data, columns=["A_Interarrival_Distribution", "B_Interarrival_Rate", "C_Preparation_Time", 
+                                    "D_Recovery_Time", "E_Preparation_Units", "F_Recovery_Units", "Queue_Length"])
+    
+    # Set up the model
+    X = df.drop(columns=["Queue_Length"])
+    X = sm.add_constant(X)  # Adds the constant term for the intercept
+    y = df["Queue_Length"]
+    
+    model = sm.OLS(y, X).fit()  # Ordinary Least Squares regression
+    
+    # Print regression results
+    print(model.summary())
+
+# Example of how to pull results and run regression
+# Let's assume `results` is a dictionary where each key is a configuration name, and the value is the simulation result
+results = {
+    "base": [{"performance_metrics": {"queue_length": 5}}],  # Replace with actual simulation data
+    "extra prep": [{"performance_metrics": {"queue_length": 7}}],  # Replace with actual simulation data
+    # Add more configurations here
+}
+
+
 
 def comparative_statistical_test(results: Dict[str, List[Dict]]):
     """
