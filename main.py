@@ -667,7 +667,7 @@ def regression_analysis(results: Dict[str, List[Dict]]):
         data.append(row)
 
     
-    df = pd.DataFrame(data, columns=["A_Interarrival_Distribution", "B_Interarrival_Rate", "C_Preparation_Time", 
+    df = pd.DataFrame(data, columns=["A_Interarrival_Distribution", "B_Urgent_Ratio", "C_Preparation_Time", 
                                     "D_Recovery_Time", "E_Preparation_Units", "F_Recovery_Units", "Queue_Length"])
     
     # Set up the model
