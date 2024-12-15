@@ -20,9 +20,10 @@ patient_data = []
 
 # After some testing, 4p5r was chosen as the configuration of choice.
 # No urgent patients, exponential distributions for all time variables.
+sim_type = '3p3r'
 
-for i in range(len(data['4p5r'])):
-    run = data['4p5r'][i]['summary_statistics']['full_patient_records']
+for i in range(len(data[sim_type])):
+    run = data[sim_type][i]['summary_statistics']['full_patient_records']
     
     ready_patients = [patient for patient in run if patient['current_stage'] == 'DISCHARGED' 
                       and patient['arrival_time'] > ignore_time and not patient['urgent']]
@@ -46,7 +47,6 @@ for run in patient_data[0:10]: #Could use all 20 here, but assignment said 10
     samples = np.interp(sampling_points, xp, fp)
     
     mean = sum(samples) / len(samples) 
-
     var = sum([(x - mean)**2 for x in samples]) / len(samples) 
     
     # Normalize data
@@ -67,9 +67,11 @@ r_mean = np.tanh(z_mean)
 print(f"Observed average autocorrelation over lag 1: {r_mean}")
 if r_mean > 1: print("Error, correlation impossible to exceed 1")
 elif r_mean > 0.7: print("Strong positive correlation")
-elif r_mean > 0.3: print("Moderate positive correlation")
+elif r_mean > 0.5: print("Moderate positive correlation")
+elif r_mean > 0.3: print("Low positive correlation")
 elif r_mean > 0: print("Insignificant positive correlation")
 elif r_mean > -0.3: print("Insignificant negative correlation")
+elif r_mean > -0.5: print("Low negative correlation")
 elif r_mean > -0.7: print("Moderate negative correlation")
 elif r_mean > -1: print("Strong negative correlation")
 else: print("Error, correlation impossible to be below -1")
